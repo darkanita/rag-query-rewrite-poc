@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Query Rewrite - Chat UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .controls {
+            padding: 15px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        select, input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .chat-container {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 15px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-metadata {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .rewrite-info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .rewrite-info strong {
+            color: #0066cc;
+        }
+
+        .rewrite-queries {
+            margin-top: 8px;
+            padding-left: 10px;
+        }
+
+        .rewrite-queries div {
+            margin: 4px 0;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        .sources {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .source-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-left: 3px solid #667eea;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+
+        .input-container {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+        }
+
+        .file-upload-btn {
+            padding: 12px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .file-upload-btn:hover {
+            background: #218838;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendButton {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        #sendButton:hover {
+            transform: scale(1.05);
+        }
+
+        #sendButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            padding: 60px 20px;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        #uploadModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            color: #495057;
+        }
+
+        .close-modal {
+            cursor: pointer;
+            font-size: 24px;
+            color: #6c757d;
+        }
+
+        .drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #f0f4ff;
+            border-color: #764ba2;
+        }
+
+        .drop-zone p {
+            margin: 10px 0;
+            color: #6c757d;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-progress {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <span>🤖</span>
+                RAG Query Rewrite Chat
+            </h1>
+            <div class="stats">
+                <div class="stat-item">
+                    <span>📄</span>
+                    <span id="docCount">0 docs</span>
+                </div>
+                <div class="stat-item">
+                    <span>🔌</span>
+                    <span id="statusIndicator">Connected</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label>Query Rewrite:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="rewriteToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="control-group">
+                <label>Strategy:</label>
+                <select id="strategySelect">
+                    <option value="hybrid">Hybrid</option>
+                    <option value="expansion">Expansion</option>
+                    <option value="decomposition">Decomposition</option>
+                    <option value="refinement">Refinement</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Top K:</label>
+                <input type="number" id="topKInput" value="5" min="1" max="20">
+            </div>
+            <div class="control-group">
+                <label>Max Queries:</label>
+                <input type="number" id="maxQueriesInput" value="3" min="1" max="10" title="Number of query variations to generate">
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showSourcesToggle" checked>
+                    Show Sources
+                </label>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="showRewriteToggle">
+                    Show Query Rewriting
+                </label>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container" id="chatContainer">
+            <div class="empty-state">
+                <h2>👋 Welcome to RAG Chat!</h2>
+                <p>Upload documents and start asking questions.</p>
+                <p style="margin-top: 10px;">💡 The system automatically finds the best way to answer your questions.</p>
+            </div>
+        </div>
+
+        <!-- Input Container -->
+        <div class="input-container">
+            <button class="file-upload-btn" onclick="openUploadModal()">
+                📁 Upload
+            </button>
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Type your question here..."
+                onkeypress="handleKeyPress(event)"
+            >
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📁 Upload Documents</h3>
+                <span class="close-modal" onclick="closeUploadModal()">×</span>
+            </div>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <p style="font-size: 48px;">📄</p>
+                <p><strong>Click to select</strong> or drag and drop files here</p>
+                <p style="font-size: 14px;">Supported: PDF, DOCX, TXT, Markdown</p>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown" multiple onchange="handleFileSelect(event)">
+            <div class="upload-progress" id="uploadProgress">
+                <p id="uploadStatus">Uploading...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        let messageHistory = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkApiStatus();
+            loadStats();
+        });
+
+        // Check API Status
+        async function checkApiStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                document.getElementById('statusIndicator').textContent = 'Connected ✓';
+                document.getElementById('statusIndicator').style.color = '#28a745';
+            } catch (error) {
+                document.getElementById('statusIndicator').textContent = 'Disconnected ✗';
+                document.getElementById('statusIndicator').style.color = '#dc3545';
+            }
+        }
+
+        // Load Stats
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/stats`);
+                const data = await response.json();
+                const docCount = data.pipeline?.vector_store?.document_count || 0;
+                document.getElementById('docCount').textContent = `${docCount} docs`;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage('user', message);
+            input.value = '';
+
+            // Disable send button
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<span class="loading"></span> Thinking...';
+
+            try {
+                const rewriteEnabled = document.getElementById('rewriteToggle').checked;
+                const topK = parseInt(document.getElementById('topKInput').value);
+                const maxQueries = parseInt(document.getElementById('maxQueriesInput').value);
+                const showSources = document.getElementById('showSourcesToggle').checked;
+
+                const response = await fetch(`${API_BASE_URL}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: message,
+                        enable_rewrite: rewriteEnabled,
+                        top_k: topK,
+                        max_queries: maxQueries,
+                        return_sources: showSources
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Add assistant response
+                addMessage('assistant', data.answer, data.metadata, data.sources);
+
+            } catch (error) {
+                addMessage('assistant', `Error: ${error.message}`, null, null);
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            }
+        }
+
+        // Add Message to Chat
+        function addMessage(role, content, metadata = null, sources = null) {
+            const chatContainer = document.getElementById('chatContainer');
+            
+            // Remove empty state if exists
+            const emptyState = chatContainer.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = `<div>${content}</div>`;
+
+            // Add metadata (query rewrite info) - only if user wants to see it
+            const showRewrite = document.getElementById('showRewriteToggle').checked;
+            if (showRewrite && metadata && metadata.query_rewrite) {
+                const rewriteInfo = document.createElement('div');
+                rewriteInfo.className = 'rewrite-info';
+                
+                // Create header info
+                const headerDiv = document.createElement('div');
+                headerDiv.innerHTML = `
+                    <strong>🔄 Query Rewriting:</strong> ${metadata.query_rewrite.strategy}<br>
+                    <strong>Queries Generated:</strong> ${metadata.query_rewrite.num_queries}
+                `;
+                rewriteInfo.appendChild(headerDiv);
+                
+                // Show the actual rewritten queries
+                if (metadata.query_rewrite.queries && metadata.query_rewrite.queries.length > 0) {
+                    const queriesDiv = document.createElement('div');
+                    queriesDiv.className = 'rewrite-queries';
+                    queriesDiv.innerHTML = '<strong>Rewritten Queries:</strong>';
+                    
+                    metadata.query_rewrite.queries.forEach((query, index) => {
+                        const queryItem = document.createElement('div');
+                        queryItem.textContent = `${index + 1}. ${query}`;
+                        queriesDiv.appendChild(queryItem);
+                    });
+                    
+                    rewriteInfo.appendChild(queriesDiv);
+                }
+                
+                contentDiv.appendChild(rewriteInfo);
+            }
+
+            // Add sources
+            if (sources && sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources';
+                sourcesDiv.innerHTML = '<strong>📚 Sources:</strong>';
+                sources.slice(0, 3).forEach((source, index) => {
+                    const sourceItem = document.createElement('div');
+                    sourceItem.className = 'source-item';
+                    sourceItem.innerHTML = `
+                        <strong>Source ${index + 1}</strong> (Score: ${source.relevance_score.toFixed(4)})<br>
+                        ${source.content.substring(0, 100)}...
+                    `;
+                    sourcesDiv.appendChild(sourceItem);
+                });
+                contentDiv.appendChild(sourcesDiv);
+            }
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Handle Key Press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Upload Modal Functions
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('uploadProgress').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // Handle File Select
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            const uploadProgress = document.getElementById('uploadProgress');
+            const progressFill = document.getElementById('progressFill');
+            const uploadStatus = document.getElementById('uploadStatus');
+
+            uploadProgress.style.display = 'block';
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                uploadStatus.textContent = `Uploading ${file.name}...`;
+                progressFill.style.width = `${((i) / files.length) * 100}%`;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/ingest/file`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    console.log(`Uploaded ${file.name}:`, data);
+                } catch (error) {
+                    console.error(`Error uploading ${file.name}:`, error);
+                    alert(`Failed to upload ${file.name}`);
+                }
+            }
+
+            progressFill.style.width = '100%';
+            uploadStatus.textContent = 'Upload complete!';
+            
+            // Refresh stats
+            await loadStats();
+
+            setTimeout(() => {
+                closeUploadModal();
+            }, 1500);
+        }
+
+        // Drag and Drop
+        const dropZone = document.getElementById('dropZone');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            document.getElementById('fileInput').files = files;
+            handleFileSelect({ target: { files: files } });
+        }, false);
+    </script>
+</body>
+</html>

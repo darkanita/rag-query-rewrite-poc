@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment variables (IMPORTANTE: contiene API keys)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Data y logs
+data/
+logs/
+*.db
+*.sqlite
+*.log
+
+# Vector stores (se generan localmente)
+chroma_db/
+faiss_index/
+vector_store/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation temp files (mantener solo los .md finales)
+*_TEMP.md
+*_DRAFT.md
+
+# Scripts de setup locales
+setup-uv.bat
+setup-uv.sh
+fix_dependencies.bat
+fix_dependencies.sh
+cleanup_agent_framework.sh
+
+# Archivos temporales del sistema
+*.tmp
+.env.tmp

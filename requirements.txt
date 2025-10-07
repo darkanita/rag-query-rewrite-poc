@@ -1,0 +1,41 @@
+# Core dependencies
+python-dotenv==1.0.0
+pydantic==2.9.0
+pydantic-settings==2.5.0
+
+# LLM and embeddings
+openai==1.51.0
+langchain==0.3.0
+langchain-openai==0.2.0
+langchain-community==0.3.0
+
+# Vector store
+chromadb==0.4.22
+# Note: faiss-cpu doesn't support Python 3.13 yet. Use Python 3.12 or comment out if not needed.
+# For Python 3.13 users: ChromaDB will work fine as the default vector store.
+faiss-cpu==1.8.0; python_version < "3.13"  # Only install on Python < 3.13
+
+# API
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+
+# Document processing
+pypdf==5.0.0
+python-docx==1.1.2
+beautifulsoup4==4.12.3
+markdown==3.7
+
+# Utilities
+numpy>=1.23.0,<2.0.0  # Compatible with ChromaDB (ChromaDB not compatible with NumPy 2.0)
+pandas>=2.2.0; python_version < "3.13"  # Pandas binary wheels not yet available for Python 3.13
+requests==2.32.0
+tqdm==4.66.5
+
+# Logging and monitoring
+loguru==0.7.2
+
+# Testing
+pytest==8.3.0
+pytest-asyncio==0.24.0
+httpx==0.27.0
